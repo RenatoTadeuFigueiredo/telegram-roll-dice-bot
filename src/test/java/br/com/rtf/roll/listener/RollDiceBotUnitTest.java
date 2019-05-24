@@ -1,13 +1,18 @@
-package br.com.rtf.roll;
+package br.com.rtf.roll.listener;
 
+import br.com.rtf.roll.config.RollProperties;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.test.context.junit4.SpringRunner;
 
 @RunWith(SpringRunner.class)
 public class RollDiceBotUnitTest {
+
+  @MockBean
+  private RollProperties properties;
 
   @SpyBean
   private RollDiceBot rollDiceBot;

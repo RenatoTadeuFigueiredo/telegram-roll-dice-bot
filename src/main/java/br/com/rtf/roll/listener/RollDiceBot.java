@@ -1,4 +1,4 @@
-package br.com.rtf.roll;
+package br.com.rtf.roll.listener;
 
 import java.util.Collections;
 import java.util.Comparator;
@@ -8,6 +8,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import br.com.rtf.roll.config.RollProperties;
+import br.com.rtf.roll.process.Process;
+import br.com.rtf.roll.process.ProcessKeep;
+import br.com.rtf.roll.process.ProcessReroll;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.util.Strings;
@@ -22,7 +26,13 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 @Slf4j
 public class RollDiceBot extends TelegramLongPollingBot {
 
+  private final RollProperties properties;
+
   private Random random;
+
+  public RollDiceBot(RollProperties properties) {
+    this.properties = properties;
+  }
 
   @Override
   public void onUpdateReceived(Update update) {
@@ -51,12 +61,12 @@ public class RollDiceBot extends TelegramLongPollingBot {
 
   @Override
   public String getBotUsername() {
-    return "java_roll_dice_bot";
+    return properties.getUsername();
   }
 
   @Override
   public String getBotToken() {
-    return "894822534:AAE1ze6s887NL8W1bYWphKltk0QhRf_oPfU";
+    return properties.getToken();
   }
 
   protected String rollDice(String message) {
@@ -103,21 +113,30 @@ public class RollDiceBot extends TelegramLongPollingBot {
               total = total + roll;
               result = addRollOnResult(result, roll);
             }
-          } else if (role.equals("k")) {
-            rolls.sort(Comparator.reverseOrder());
-            ProcessKeep processKeep = new ProcessKeep(result, total, m.group(4), rolls).invoke();
-            result = processKeep.getResult();
-            total = processKeep.getTotal();
-          } else if (role.equals("kl")) {
-            rolls.sort(Comparator.naturalOrder());
-            ProcessKeep processKeep = new ProcessKeep(result, total, m.group(4), rolls).invoke();
-            result = processKeep.getResult();
-            total = processKeep.getTotal();
-          } else if (role.equals("r")) {
-            rolls.sort(Comparator.reverseOrder());
-            ProcessReroll processReroll = new ProcessReroll(result, total, m.group(4), rolls, sides).invoke();
-            result = processReroll.getResult();
-            total = processReroll.getTotal();
+          } else {
+            Process process = null;
+            switch (role) {
+              case "k":
+                rolls.sort(Comparator.reverseOrder());
+                process = new ProcessKeep(result, total, m.group(4), rolls).invoke();
+                break;
+              case "kl":
+                rolls.sort(Comparator.naturalOrder());
+                process = new ProcessKeep(result, total, m.group(4), rolls).invoke();
+                break;
+              case "r":
+                rolls.sort(Comparator.reverseOrder());
+                process = new ProcessReroll(result, total, m.group(4), rolls, sides).invoke();
+                break;
+            }
+
+            if (process == null) {
+              LOGGER.error("FAIL TO RECOGNIZE [{}]", role);
+              return "ERROR";
+            }
+
+            result = process.getResult();
+            total = process.getTotal();
           }
         } else {
           LOGGER.error("FAIL TO CONVERT [{}]", step);
@@ -141,89 +160,5 @@ public class RollDiceBot extends TelegramLongPollingBot {
     return result.concat("(" + roll + ")");
   }
 
-  private class ProcessKeep {
-    private String result;
-    private long total;
-    private String keep;
-    private List<Integer> rolls;
 
-    public ProcessKeep(String result, long total, String keep, List<Integer> rolls) {
-      this.result = result;
-      this.total = total;
-      this.keep = keep;
-      this.rolls = rolls;
-    }
-
-    public String getResult() {
-      return result;
-    }
-
-    public long getTotal() {
-      return total;
-    }
-
-    public ProcessKeep invoke() {
-      if (keep == null) {
-        keep = "1";
-      }
-      int keep = Integer.parseInt(this.keep);
-      result = result.concat(" (");
-      for (Integer roll : rolls) {
-        if (keep >= 1) {
-          total = total + roll;
-          result = result.concat(" **").concat(String.valueOf(roll).concat("**"));
-        } else {
-          result = result.concat(" __").concat(String.valueOf(roll)).concat("__");
-        }
-        keep--;
-      }
-      result = result.concat(" )");
-      return this;
-    }
-  }
-
-  private class ProcessReroll {
-    private String result;
-    private long total;
-    private String reroll;
-    private List<Integer> rolls;
-    private int sides;
-
-    public ProcessReroll(String result, long total, String reroll, List<Integer> rolls, int sides) {
-      this.result = result;
-      this.total = total;
-      this.reroll = reroll;
-      this.rolls = rolls;
-      this.sides = sides;
-    }
-
-    public String getResult() {
-      return result;
-    }
-
-    public long getTotal() {
-      return total;
-    }
-
-    public ProcessReroll invoke() {
-      if (reroll == null) {
-        reroll = "1";
-      }
-      int reroll = Integer.parseInt(this.reroll);
-      result = result.concat(" (");
-      for (Integer roll : rolls) {
-        if (roll > reroll) {
-          total = total + roll;
-          result = result.concat(" **").concat(String.valueOf(roll).concat("**"));
-        } else {
-          int newRoll = random.nextInt(sides) + 1;
-          total = total + newRoll;
-          result = result.concat(" __").concat(String.valueOf(roll)).concat("__");
-          result = result.concat(" **").concat(String.valueOf(newRoll).concat("**"));
-        }
-      }
-      result = result.concat(" )");
-      return this;
-    }
-  }
 }
