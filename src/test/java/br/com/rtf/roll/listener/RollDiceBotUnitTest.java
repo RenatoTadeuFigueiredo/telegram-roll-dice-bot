@@ -102,4 +102,24 @@ public class RollDiceBotUnitTest {
     return Long.parseLong(result.substring(pos + 3));
   }
 
+  @Test
+  public void rollDice_SimpleOneMinusNumber() {
+    String result = rollDiceBot.rollDice("/r 1d20-15");
+
+    Assert.assertNotEquals("ERROR", result);
+    long total = getTotal(result);
+    Assert.assertTrue(total >= -14);
+    Assert.assertTrue(total <= 5);
+  }
+
+  @Test
+  public void rollDice_TwoRollsMinusNumber() {
+    String result = rollDiceBot.rollDice("/r 1d20-1d6-12");
+
+    Assert.assertNotEquals("ERROR", result);
+    long total = getTotal(result);
+    Assert.assertTrue(total >= -17);
+    Assert.assertTrue(total <= 7);
+  }
+
 }

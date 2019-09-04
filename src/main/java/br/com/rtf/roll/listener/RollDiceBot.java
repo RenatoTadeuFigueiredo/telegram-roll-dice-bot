@@ -14,6 +14,7 @@ import br.com.rtf.roll.process.ProcessKeep;
 import br.com.rtf.roll.process.ProcessReroll;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.logging.log4j.util.Strings;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -86,12 +87,19 @@ public class RollDiceBot extends TelegramLongPollingBot {
     long total = 0L;
     random = new Random();
 
+    message = message.replaceAll("\\-", "\\+-");
     String[] steps = message.split("\\+");
     for (String step : steps) {
-      if (StringUtils.isNumeric(step)) {
-        total = total + Long.valueOf(step);
-        result = addRollOnResult(result, Integer.parseInt(step));
+      if (NumberUtils.isCreatable(step)) {
+        long currentNumber = Long.parseLong(step);
+        total = total + currentNumber;
+        result = addRollOnResult(result, Math.toIntExact(Math.abs(currentNumber)), currentNumber > 0);
       } else {
+        boolean plus = true;
+        if (step.startsWith("-")) {
+          step = step.substring(1);
+          plus = false;
+        }
         Pattern p = Pattern.compile("([1-9]\\d*)?d([1-9]\\d*)?(k|kl|r)?([1-9]?)");
         Matcher m = p.matcher(step);
         if (m.matches()) {
@@ -110,8 +118,12 @@ public class RollDiceBot extends TelegramLongPollingBot {
           String role = m.group(3);
           if (role == null) {
             for (Integer roll : rolls) {
-              total = total + roll;
-              result = addRollOnResult(result, roll);
+              if (plus) {
+                total = total + roll;
+              } else {
+                total = total - roll;
+              }
+              result = addRollOnResult(result, roll, plus);
             }
           } else {
             Process process = null;
@@ -145,20 +157,112 @@ public class RollDiceBot extends TelegramLongPollingBot {
       }
     }
 
-    if (total > 0) {
+    if (total != 0) {
       return result.concat(" = ").concat(String.valueOf(total));
     }
 
     return "ERROR";
   }
 
-  private String addRollOnResult(String result, int roll) {
+  private String addRollOnResult(String result, int roll, boolean plus) {
     if (result.length() > 0) {
-      result = result.concat(" + ");
+      if (plus) {
+        result = result.concat(" + ");
+      } else {
+        result = result.concat(" - ");
+      }
     }
 
     return result.concat("(" + roll + ")");
   }
 
 
+  private class ProcessTest {
+    private boolean myResult;
+    private String result;
+    private long total;
+    private String[] steps;
+
+    public ProcessTest(String result, long total, String... steps) {
+      this.result = result;
+      this.total = total;
+      this.steps = steps;
+    }
+
+    public String getResult() {
+      return result;
+    }
+
+    public long getTotal() {
+      return total;
+    }
+
+    public ProcessTest invoke() {
+      for (String step : steps) {
+        if (StringUtils.isNumeric(step)) {
+          total = total + Long.valueOf(step);
+          result = addRollOnResult(result, Integer.parseInt(step), true);
+        } else {
+          Pattern p = Pattern.compile("([1-9]\\d*)?d([1-9]\\d*)?(k|kl|r)?([1-9]?)");
+          Matcher m = p.matcher(step);
+          if (m.matches()) {
+            String num = m.group(1);
+            if (Strings.isBlank(num)) {
+              num = "1";
+            }
+
+            int sides = Integer.parseInt(m.group(2));
+
+            List<Integer> rolls = new CopyOnWriteArrayList<>();
+            for (int i = 0; i < Integer.parseInt(num); i++) {
+              rolls.add(random.nextInt(sides) + 1);
+            }
+
+            String role = m.group(3);
+            if (role == null) {
+              for (Integer roll : rolls) {
+                total = total + roll;
+                result = addRollOnResult(result, roll, true);
+              }
+            } else {
+              Process process = null;
+              switch (role) {
+                case "k":
+                  rolls.sort(Comparator.reverseOrder());
+                  process = new ProcessKeep(result, total, m.group(4), rolls).invoke();
+                  break;
+                case "kl":
+                  rolls.sort(Comparator.naturalOrder());
+                  process = new ProcessKeep(result, total, m.group(4), rolls).invoke();
+                  break;
+                case "r":
+                  rolls.sort(Comparator.reverseOrder());
+                  process = new ProcessReroll(result, total, m.group(4), rolls, sides).invoke();
+                  break;
+              }
+
+              if (process == null) {
+                LOGGER.error("FAIL TO RECOGNIZE [{}]", role);
+                myResult = true;
+                return this;
+              }
+
+              result = process.getResult();
+              total = process.getTotal();
+            }
+          } else {
+            LOGGER.error("FAIL TO CONVERT [{}]", step);
+            myResult = true;
+            return this;
+          }
+        }
+      }
+      myResult = false;
+      return this;
+    }
+
+    boolean is() {
+      return myResult;
+    }
+  }
 }
