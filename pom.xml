@@ -10,7 +10,7 @@
     </parent>
     <groupId>br.com.rtf</groupId>
     <artifactId>roll</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.2</version>
     <name>telegram-roll-dice-bot</name>
     <description>Telegram bot to roll dice</description>
 
