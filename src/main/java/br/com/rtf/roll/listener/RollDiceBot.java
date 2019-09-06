@@ -15,7 +15,6 @@ import br.com.rtf.roll.process.ProcessReroll;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
-import org.apache.logging.log4j.util.Strings;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -43,6 +42,7 @@ public class RollDiceBot extends TelegramLongPollingBot {
   @Override
   public void onUpdatesReceived(List<Update> updates) {
     updates.forEach(update -> {
+      LOGGER.debug("UPDATE [{}]", update);
       SendMessage response = new SendMessage();
       Message message = update.getMessage();
 
@@ -51,10 +51,12 @@ public class RollDiceBot extends TelegramLongPollingBot {
         response.setText(returnMessage);
         response.setChatId(message.getChatId());
         response.setReplyToMessageId(message.getMessageId());
+
+        LOGGER.debug("RESPONSE = [{}]", response);
         try {
           execute(response);
         } catch (TelegramApiException e) {
-          e.printStackTrace();
+          LOGGER.error("FAIL TO SEND MESSAGE", e);
         }
       }
     });
@@ -71,97 +73,98 @@ public class RollDiceBot extends TelegramLongPollingBot {
   }
 
   protected String rollDice(String message) {
-    message = message.toLowerCase();
-    LOGGER.debug("TRY TO ROLL => " + message);
+    try {
+      message = message.toLowerCase();
+      LOGGER.debug("TRY TO ROLL => " + message);
 
-    if (message.startsWith("/roll")) {
-      message = message.substring(5).trim();
-    } else if (message.startsWith("/r")) {
-      message = message.substring(2).trim();
-    } else {
-      LOGGER.error("FAIL TO IDENTIFY [{}]", message);
-      return null;
-    }
-
-    String result = "";
-    long total = 0L;
-    random = new Random();
-
-    message = message.replaceAll("\\-", "\\+-");
-    String[] steps = message.split("\\+");
-    for (String step : steps) {
-      if (NumberUtils.isCreatable(step)) {
-        long currentNumber = Long.parseLong(step);
-        total = total + currentNumber;
-        result = addRollOnResult(result, Math.toIntExact(Math.abs(currentNumber)), currentNumber > 0);
+      if (message.startsWith("/roll")) {
+        message = message.substring(5).trim();
+      } else if (message.startsWith("/r")) {
+        message = message.substring(2).trim();
       } else {
-        boolean plus = true;
-        if (step.startsWith("-")) {
-          step = step.substring(1);
-          plus = false;
-        }
-        Pattern p = Pattern.compile("([1-9]\\d*)?d([1-9]\\d*)?(k|kl|r)?([1-9]?)");
-        Matcher m = p.matcher(step);
-        if (m.matches()) {
-          String num = m.group(1);
-          if (Strings.isBlank(num)) {
-            num = "1";
+        LOGGER.error("FAIL TO IDENTIFY [{}]", message);
+        return null;
+      }
+
+      String result = "";
+      long total = 0L;
+      random = new Random();
+
+      message = message.replaceAll("\\-", "\\+-");
+      String[] steps = message.split("\\+");
+      for (String step : steps) {
+        if (NumberUtils.isCreatable(step)) {
+          long currentNumber = Long.parseLong(step);
+          total = total + currentNumber;
+          result = addRollOnResult(result, Math.toIntExact(Math.abs(currentNumber)), currentNumber > 0);
+        } else {
+          boolean plus = true;
+          if (step.startsWith("-")) {
+            step = step.substring(1);
+            plus = false;
           }
+          Pattern p = Pattern.compile("([1-9]\\d*)?d([1-9]\\d*)?(k|kl|r)?([1-9]?)");
+          Matcher m = p.matcher(step);
+          if (m.matches()) {
+            String num = m.group(1);
+            if (StringUtils.isBlank(num)) {
+              num = "1";
+            }
 
-          int sides = Integer.parseInt(m.group(2));
+            int sides = Integer.parseInt(m.group(2));
 
-          List<Integer> rolls = new CopyOnWriteArrayList<>();
-          for (int i = 0; i < Integer.parseInt(num); i++) {
-            rolls.add(random.nextInt(sides) + 1);
-          }
+            List<Integer> rolls = new CopyOnWriteArrayList<>();
+            for (int i = 0; i < Integer.parseInt(num); i++) {
+              rolls.add(random.nextInt(sides) + 1);
+            }
 
-          String role = m.group(3);
-          if (role == null) {
-            for (Integer roll : rolls) {
-              if (plus) {
-                total = total + roll;
-              } else {
-                total = total - roll;
+            String role = m.group(3);
+            if (role == null) {
+              for (Integer roll : rolls) {
+                if (plus) {
+                  total = total + roll;
+                } else {
+                  total = total - roll;
+                }
+                result = addRollOnResult(result, roll, plus);
               }
-              result = addRollOnResult(result, roll, plus);
+            } else {
+              Process process = null;
+              switch (role) {
+                case "k":
+                  rolls.sort(Comparator.reverseOrder());
+                  process = new ProcessKeep(result, total, m.group(4), rolls).invoke();
+                  break;
+                case "kl":
+                  rolls.sort(Comparator.naturalOrder());
+                  process = new ProcessKeep(result, total, m.group(4), rolls).invoke();
+                  break;
+                case "r":
+                  rolls.sort(Comparator.reverseOrder());
+                  process = new ProcessReroll(result, total, m.group(4), rolls, sides).invoke();
+                  break;
+              }
+
+              if (process == null) {
+                LOGGER.error("FAIL TO RECOGNIZE [{}]", role);
+                return "ERROR";
+              }
+
+              result = process.getResult();
+              total = process.getTotal();
             }
           } else {
-            Process process = null;
-            switch (role) {
-              case "k":
-                rolls.sort(Comparator.reverseOrder());
-                process = new ProcessKeep(result, total, m.group(4), rolls).invoke();
-                break;
-              case "kl":
-                rolls.sort(Comparator.naturalOrder());
-                process = new ProcessKeep(result, total, m.group(4), rolls).invoke();
-                break;
-              case "r":
-                rolls.sort(Comparator.reverseOrder());
-                process = new ProcessReroll(result, total, m.group(4), rolls, sides).invoke();
-                break;
-            }
-
-            if (process == null) {
-              LOGGER.error("FAIL TO RECOGNIZE [{}]", role);
-              return "ERROR";
-            }
-
-            result = process.getResult();
-            total = process.getTotal();
+            LOGGER.error("FAIL TO CONVERT [{}]", step);
+            return "ERROR";
           }
-        } else {
-          LOGGER.error("FAIL TO CONVERT [{}]", step);
-          return "ERROR";
         }
       }
-    }
 
-    if (total != 0) {
       return result.concat(" = ").concat(String.valueOf(total));
+    } catch (Exception e) {
+      LOGGER.error("ROLL ERROR", e);
+      return "ERROR";
     }
-
-    return "ERROR";
   }
 
   private String addRollOnResult(String result, int roll, boolean plus) {
@@ -207,7 +210,7 @@ public class RollDiceBot extends TelegramLongPollingBot {
           Matcher m = p.matcher(step);
           if (m.matches()) {
             String num = m.group(1);
-            if (Strings.isBlank(num)) {
+            if (StringUtils.isBlank(num)) {
               num = "1";
             }
 

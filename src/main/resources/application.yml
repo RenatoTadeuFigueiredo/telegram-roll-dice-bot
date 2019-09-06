@@ -1,3 +1,19 @@
+spring:
+  profiles.active: default
+
 roll:
   username: java_roll_dice_bot
   token: 894822534:AAE1ze6s887NL8W1bYWphKltk0QhRf_oPfU
+
+logging:
+  level:
+    br.com.rtf.roll: DEBUG
+
+---
+
+spring:
+  profiles: production
+
+logging:
+  path: /var/log/applications/
+  file: /var/log/applications/roll.log

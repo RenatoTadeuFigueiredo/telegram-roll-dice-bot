@@ -122,4 +122,14 @@ public class RollDiceBotUnitTest {
     Assert.assertTrue(total <= 7);
   }
 
+  @Test
+  public void rollDice_TwoRollsMinus() {
+    String result = rollDiceBot.rollDice("/r 1d6-1d12");
+
+    Assert.assertNotEquals("ERROR", result);
+    long total = getTotal(result);
+    Assert.assertTrue(total >= -17);
+    Assert.assertTrue(total <= 7);
+  }
+
 }
