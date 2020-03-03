@@ -21,7 +21,7 @@ public class RollDiceBotUnitTest {
   public void rollDice_SuperSimpleOne() {
     String result = rollDiceBot.rollDice("/rd20");
 
-    Assert.assertNotEquals("ERROR", result);
+    Assert.assertNotEquals(null, result);
     long total = getTotal(result);
     Assert.assertTrue(total >= 1);
     Assert.assertTrue(total <= 20);
@@ -31,7 +31,7 @@ public class RollDiceBotUnitTest {
   public void rollDice_SimpleOne() {
     String result = rollDiceBot.rollDice("/r 1d20");
 
-    Assert.assertNotEquals("ERROR", result);
+    Assert.assertNotEquals(null, result);
     long total = getTotal(result);
     Assert.assertTrue(total >= 1);
     Assert.assertTrue(total <= 20);
@@ -41,7 +41,7 @@ public class RollDiceBotUnitTest {
   public void rollDice_SimpleOnePlusNumber() {
     String result = rollDiceBot.rollDice("/r 1d20+15");
 
-    Assert.assertNotEquals("ERROR", result);
+    Assert.assertNotEquals(null, result);
     long total = getTotal(result);
     Assert.assertTrue(total >= 16);
     Assert.assertTrue(total <= 35);
@@ -51,7 +51,7 @@ public class RollDiceBotUnitTest {
   public void rollDice_TwoRolls() {
     String result = rollDiceBot.rollDice("/r 1d20+1d6");
 
-    Assert.assertNotEquals("ERROR", result);
+    Assert.assertNotEquals(null, result);
     long total = getTotal(result);
     Assert.assertTrue(total >= 2);
     Assert.assertTrue(total <= 26);
@@ -61,7 +61,7 @@ public class RollDiceBotUnitTest {
   public void rollDice_TwoRollsPlusNumber() {
     String result = rollDiceBot.rollDice("/r 1d20+1d6+12");
 
-    Assert.assertNotEquals("ERROR", result);
+    Assert.assertNotEquals(null, result);
     long total = getTotal(result);
     Assert.assertTrue(total >= 14);
     Assert.assertTrue(total <= 38);
@@ -71,7 +71,7 @@ public class RollDiceBotUnitTest {
   public void rollDice_AdvancedRoll() {
     String result = rollDiceBot.rollDice("/r 2d20k1");
 
-    Assert.assertNotEquals("ERROR", result);
+    Assert.assertNotEquals(null, result);
     long total = getTotal(result);
     Assert.assertTrue(total >= 1);
     Assert.assertTrue(total <= 20);
@@ -81,7 +81,7 @@ public class RollDiceBotUnitTest {
   public void rollDice_DisadvantageRoll() {
     String result = rollDiceBot.rollDice("/r 2d20kl1");
 
-    Assert.assertNotEquals("ERROR", result);
+    Assert.assertNotEquals(null, result);
     long total = getTotal(result);
     Assert.assertTrue(total >= 1);
     Assert.assertTrue(total <= 20);
@@ -91,10 +91,10 @@ public class RollDiceBotUnitTest {
   public void rollDice_ReRoll() {
     String result = rollDiceBot.rollDice("/r 4d6r2");
 
-    Assert.assertNotEquals("ERROR", result);
+    Assert.assertNotEquals(null, result);
     long total = getTotal(result);
     Assert.assertTrue(total >= 1);
-    Assert.assertTrue(total <= 20);
+    Assert.assertTrue(total <= 21);
   }
 
   private long getTotal(String result) {
@@ -106,7 +106,7 @@ public class RollDiceBotUnitTest {
   public void rollDice_SimpleOneMinusNumber() {
     String result = rollDiceBot.rollDice("/r 1d20-15");
 
-    Assert.assertNotEquals("ERROR", result);
+    Assert.assertNotEquals(null, result);
     long total = getTotal(result);
     Assert.assertTrue(total >= -14);
     Assert.assertTrue(total <= 5);
@@ -116,7 +116,7 @@ public class RollDiceBotUnitTest {
   public void rollDice_TwoRollsMinusNumber() {
     String result = rollDiceBot.rollDice("/r 1d20-1d6-12");
 
-    Assert.assertNotEquals("ERROR", result);
+    Assert.assertNotEquals(null, result);
     long total = getTotal(result);
     Assert.assertTrue(total >= -17);
     Assert.assertTrue(total <= 7);
@@ -126,7 +126,7 @@ public class RollDiceBotUnitTest {
   public void rollDice_TwoRollsMinus() {
     String result = rollDiceBot.rollDice("/r 1d6-1d12");
 
-    Assert.assertNotEquals("ERROR", result);
+    Assert.assertNotEquals(null, result);
     long total = getTotal(result);
     Assert.assertTrue(total >= -17);
     Assert.assertTrue(total <= 7);

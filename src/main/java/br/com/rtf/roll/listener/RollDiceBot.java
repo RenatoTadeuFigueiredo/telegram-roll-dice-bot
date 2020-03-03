@@ -73,6 +73,10 @@ public class RollDiceBot extends TelegramLongPollingBot {
   }
 
   protected String rollDice(String message) {
+    if (StringUtils.isBlank(message)) {
+      return null;
+    }
+
     try {
       message = message.toLowerCase();
       LOGGER.debug("TRY TO ROLL => " + message);
@@ -83,7 +87,7 @@ public class RollDiceBot extends TelegramLongPollingBot {
         message = message.substring(2).trim();
       } else {
         LOGGER.error("FAIL TO IDENTIFY [{}]", message);
-        return null;
+        return "ERROR";
       }
 
       String result = "";
